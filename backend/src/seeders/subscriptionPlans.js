@@ -12,6 +12,17 @@ const seedSubscriptionPlans = async () => {
     // Create default plans
     await SubscriptionPlan.bulkCreate([
       {
+        name: 'Free',
+        price: 0.00,
+        duration: 30,
+        features: [
+          'Basic menu items',
+          'QR code generation',
+          'Mobile responsive menu'
+        ],
+        isActive: true
+      },
+      {
         name: 'monthly',
         price: 499.00,
         duration: 30,
