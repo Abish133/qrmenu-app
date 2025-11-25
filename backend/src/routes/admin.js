@@ -18,5 +18,7 @@ router.get('/restaurants', authenticate, authorize('admin'), AdminController.get
 router.get('/stats', authenticate, authorize('admin'), AdminController.getStats);
 router.get('/subscription-plans', authenticate, authorize('admin'), AdminController.getSubscriptionPlans);
 router.put('/subscription-plans/:id', authenticate, authorize('admin'), AdminController.updateSubscriptionPlan);
+router.post('/restaurants/:restaurantId/extend-subscription', authenticate, authorize('admin'), AdminController.extendSubscription);
+router.post('/restaurants/:restaurantId/grant-free-month', authenticate, authorize('admin'), AdminController.grantFreeMonth);
 
 module.exports = router;

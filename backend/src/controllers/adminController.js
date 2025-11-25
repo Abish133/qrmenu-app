@@ -52,13 +52,50 @@ class AdminController {
           {
             model: Subscription,
             as: 'subscriptions',
+            include: [{
+              model: SubscriptionPlan,
+              as: 'plan'
+            }],
             order: [['createdAt', 'DESC']],
             limit: 1
           }
         ]
       });
 
-      res.json({ restaurants });
+      const restaurantsWithSubscription = restaurants.map(restaurant => {
+        const latestSubscription = restaurant.subscriptions?.[0];
+        let subscriptionStatus = 'none';
+        let remainingDays = 0;
+        let expiryDate = null;
+
+        if (latestSubscription) {
+          const now = new Date();
+          const endDate = new Date(latestSubscription.endDate);
+          expiryDate = latestSubscription.endDate;
+          
+          if (latestSubscription.status === 'active' && endDate > now) {
+            subscriptionStatus = 'active';
+            remainingDays = Math.ceil((endDate - now) / (1000 * 60 * 60 * 24));
+          } else if (endDate < now) {
+            subscriptionStatus = 'expired';
+            remainingDays = 0;
+          } else {
+            subscriptionStatus = latestSubscription.status;
+          }
+        }
+
+        return {
+          ...restaurant.toJSON(),
+          subscriptionInfo: {
+            status: subscriptionStatus,
+            expiryDate,
+            remainingDays,
+            planName: latestSubscription?.plan?.name || 'None'
+          }
+        };
+      });
+
+      res.json({ restaurants: restaurantsWithSubscription });
     } catch (error) {
       console.error('Get all restaurants error:', error);
       res.status(500).json({ message: 'Internal server error' });
@@ -113,6 +150,79 @@ class AdminController {
       res.json({ message: 'Subscription plan updated successfully' });
     } catch (error) {
       console.error('Update subscription plan error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  }
+
+  static async extendSubscription(req, res) {
+    try {
+      const { restaurantId } = req.params;
+      const { days } = req.body;
+
+      const restaurant = await Restaurant.findByPk(restaurantId, {
+        include: [{
+          model: Subscription,
+          as: 'subscriptions',
+          order: [['createdAt', 'DESC']],
+          limit: 1
+        }]
+      });
+
+      if (!restaurant) {
+        return res.status(404).json({ message: 'Restaurant not found' });
+      }
+
+      const latestSubscription = restaurant.subscriptions?.[0];
+      
+      if (latestSubscription) {
+        const currentEndDate = new Date(latestSubscription.endDate);
+        const newEndDate = new Date(currentEndDate.getTime() + (days * 24 * 60 * 60 * 1000));
+        
+        await latestSubscription.update({
+          endDate: newEndDate,
+          status: 'active'
+        });
+      }
+
+      res.json({ message: `Subscription extended by ${days} days` });
+    } catch (error) {
+      console.error('Extend subscription error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  }
+
+  static async grantFreeMonth(req, res) {
+    try {
+      const { restaurantId } = req.params;
+
+      const restaurant = await Restaurant.findByPk(restaurantId);
+      if (!restaurant) {
+        return res.status(404).json({ message: 'Restaurant not found' });
+      }
+
+      const freePlan = await SubscriptionPlan.findOne({
+        where: { name: 'Free' }
+      });
+
+      if (!freePlan) {
+        return res.status(404).json({ message: 'Free plan not found' });
+      }
+
+      const startDate = new Date();
+      const endDate = new Date(startDate.getTime() + (30 * 24 * 60 * 60 * 1000));
+
+      await Subscription.create({
+        restaurantId,
+        planId: freePlan.id,
+        startDate,
+        endDate,
+        status: 'active',
+        paymentStatus: 'completed'
+      });
+
+      res.json({ message: '1 month free subscription granted' });
+    } catch (error) {
+      console.error('Grant free month error:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
   }

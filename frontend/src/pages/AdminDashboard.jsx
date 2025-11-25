@@ -1,10 +1,111 @@
-import React from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Shield, Building, Users, CreditCard, Settings } from 'lucide-react';
+import { Shield, Building, Users, CreditCard, Settings, Clock, Gift } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import api from '@/services/api';
+import toast from 'react-hot-toast';
+
+const RestaurantRow = ({ restaurant }) => {
+  const queryClient = useQueryClient();
+  const [extending, setExtending] = useState(false);
+  const [granting, setGranting] = useState(false);
+
+  const { subscriptionInfo } = restaurant;
+  const hasNoSubscription = subscriptionInfo.status === 'none';
+  const isExpired = subscriptionInfo.status === 'expired';
+
+  const extendMutation = useMutation({
+    mutationFn: () => api.post(`/admin/restaurants/${restaurant.id}/extend-subscription`, { days: 3 }),
+    onSuccess: () => {
+      toast.success('Subscription extended by 3 days');
+      queryClient.invalidateQueries(['admin-restaurants']);
+      setExtending(false);
+    },
+    onError: () => {
+      toast.error('Failed to extend subscription');
+      setExtending(false);
+    }
+  });
+
+  const grantFreeMutation = useMutation({
+    mutationFn: () => api.post(`/admin/restaurants/${restaurant.id}/grant-free-month`),
+    onSuccess: () => {
+      toast.success('1 month free subscription granted');
+      queryClient.invalidateQueries(['admin-restaurants']);
+      setGranting(false);
+    },
+    onError: () => {
+      toast.error('Failed to grant free subscription');
+      setGranting(false);
+    }
+  });
+
+  const getStatusBadge = () => {
+    if (subscriptionInfo.status === 'active') {
+      return <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">Active</span>;
+    }
+    if (subscriptionInfo.status === 'expired') {
+      return <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium">Expired</span>;
+    }
+    return <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-medium">No Subscription</span>;
+  };
+
+  const formatDate = (date) => {
+    if (!date) return 'N/A';
+    return new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  };
+
+  return (
+    <tr className="border-b hover:bg-gray-50">
+      <td className="p-3 font-medium">{restaurant.name}</td>
+      <td className="p-3">{restaurant.user?.name}</td>
+      <td className="p-3 text-sm">{subscriptionInfo.planName}</td>
+      <td className="p-3">{getStatusBadge()}</td>
+      <td className="p-3 text-sm">{formatDate(subscriptionInfo.expiryDate)}</td>
+      <td className="p-3">
+        {subscriptionInfo.status === 'active' ? (
+          <span className="font-semibold text-blue-600">{subscriptionInfo.remainingDays} days</span>
+        ) : (
+          <span className="text-gray-400">-</span>
+        )}
+      </td>
+      <td className="p-3">
+        <div className="flex gap-2">
+          {hasNoSubscription ? (
+            <Button
+              size="sm"
+              onClick={() => {
+                setGranting(true);
+                grantFreeMutation.mutate();
+              }}
+              disabled={granting}
+              className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+            >
+              <Gift className="w-4 h-4 mr-1" />
+              {granting ? 'Granting...' : '1 Month Free'}
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setExtending(true);
+                extendMutation.mutate();
+              }}
+              disabled={extending}
+            >
+              <Clock className="w-4 h-4 mr-1" />
+              {extending ? 'Extending...' : 'Extend 3 Days'}
+            </Button>
+          )}
+        </div>
+      </td>
+    </tr>
+  );
+};
+
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -117,24 +218,16 @@ const AdminDashboard = () => {
                 <tr className="border-b">
                   <th className="text-left p-3">Restaurant</th>
                   <th className="text-left p-3">Owner</th>
-                  <th className="text-left p-3">Email</th>
-                  <th className="text-left p-3">Slug</th>
+                  <th className="text-left p-3">Plan</th>
                   <th className="text-left p-3">Status</th>
+                  <th className="text-left p-3">Expiry Date</th>
+                  <th className="text-left p-3">Remaining Days</th>
+                  <th className="text-left p-3">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {restaurantList.map((restaurant) => (
-                  <tr key={restaurant.id} className="border-b hover:bg-gray-50">
-                    <td className="p-3 font-medium">{restaurant.name}</td>
-                    <td className="p-3">{restaurant.user?.name}</td>
-                    <td className="p-3 text-gray-600">{restaurant.user?.email}</td>
-                    <td className="p-3 font-mono text-sm">{restaurant.slug}</td>
-                    <td className="p-3">
-                      <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">
-                        Active
-                      </span>
-                    </td>
-                  </tr>
+                  <RestaurantRow key={restaurant.id} restaurant={restaurant} />
                 ))}
               </tbody>
             </table>
