@@ -3,13 +3,22 @@ const crypto = require('crypto');
 
 class RazorpayService {
   constructor() {
-    this.razorpay = new Razorpay({
-      key_id: process.env.RAZORPAY_KEY_ID,
-      key_secret: process.env.RAZORPAY_KEY_SECRET,
-    });
+    if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+      this.razorpay = new Razorpay({
+        key_id: process.env.RAZORPAY_KEY_ID,
+        key_secret: process.env.RAZORPAY_KEY_SECRET,
+      });
+      this.enabled = true;
+    } else {
+      this.enabled = false;
+      console.log('Razorpay not configured - payment features disabled');
+    }
   }
 
   async createOrder(amount, currency = 'INR', receipt) {
+    if (!this.enabled) {
+      throw new Error('Razorpay not configured');
+    }
     try {
       const options = {
         amount: amount * 100, // Amount in paise
@@ -26,6 +35,9 @@ class RazorpayService {
   }
 
   verifyPayment(razorpayOrderId, razorpayPaymentId, razorpaySignature) {
+    if (!this.enabled) {
+      return false;
+    }
     try {
       const body = razorpayOrderId + '|' + razorpayPaymentId;
       const expectedSignature = crypto
@@ -41,6 +53,9 @@ class RazorpayService {
   }
 
   async getPaymentDetails(paymentId) {
+    if (!this.enabled) {
+      throw new Error('Razorpay not configured');
+    }
     try {
       return await this.razorpay.payments.fetch(paymentId);
     } catch (error) {
