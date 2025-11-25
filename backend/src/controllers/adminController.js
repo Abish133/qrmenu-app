@@ -54,7 +54,7 @@ class AdminController {
             as: 'subscriptions',
             include: [{
               model: SubscriptionPlan,
-              as: 'plan'
+              as: 'subscriptionPlan'
             }],
             order: [['createdAt', 'DESC']],
             limit: 1
@@ -90,7 +90,7 @@ class AdminController {
             status: subscriptionStatus,
             expiryDate,
             remainingDays,
-            planName: latestSubscription?.plan?.name || 'None'
+            planName: latestSubscription?.subscriptionPlan?.name || 'None'
           }
         };
       });

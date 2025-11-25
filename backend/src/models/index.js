@@ -20,7 +20,7 @@ Restaurant.hasMany(Subscription, { foreignKey: 'restaurantId', as: 'subscription
 Subscription.belongsTo(Restaurant, { foreignKey: 'restaurantId', as: 'restaurant' });
 
 SubscriptionPlan.hasMany(Subscription, { foreignKey: 'planId', as: 'subscriptions' });
-Subscription.belongsTo(SubscriptionPlan, { foreignKey: 'planId', as: 'plan' });
+Subscription.belongsTo(SubscriptionPlan, { foreignKey: 'planId', as: 'subscriptionPlan' });
 
 module.exports = {
   sequelize,
