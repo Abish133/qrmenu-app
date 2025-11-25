@@ -214,10 +214,11 @@ class AdminController {
       await Subscription.create({
         restaurantId,
         planId: freePlan.id,
+        plan: 'monthly',
+        price: 0.00,
         startDate,
         endDate,
-        status: 'active',
-        paymentStatus: 'completed'
+        status: 'active'
       });
 
       res.json({ message: '1 month free subscription granted' });
